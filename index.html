@@ -1,0 +1,348 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Калькулятор себестоимости фурнитуры</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: телефон — одна колонка, ввод сверху, расшифровка ниже, итог закреплён внизу экрана; десктоп — две колонки */
+:root{
+  --bg:#EDEFF0; --panel:#FFFFFF; --fg:#1C2126; --muted:#5E676F; --line:#D5DADE;
+  --brass:#9A6A1E; --brass-soft:#F3E6CF; --steel:#3F5566; --ok:#3E7A3A; --bad:#B8472F;
+  --c1:#3F5566; --c2:#9A6A1E; --c3:#B8472F; --c4:#6B7F3A; --c5:#7A5C8E; --c6:#8A949C;
+  --f-display:"Unbounded","Onest",system-ui,sans-serif;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14171A; --panel:#1C2024; --fg:#E7EAEC; --muted:#99A3AB; --line:#2E343A;
+  --brass:#D9A24E; --brass-soft:#3A2F1E; --steel:#8FB0C6; --ok:#8CC57F; --bad:#E07A61;
+  --c1:#8FB0C6; --c2:#D9A24E; --c3:#E07A61; --c4:#A6BD6A; --c5:#B79AD0; --c6:#7D8890; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14171A; --panel:#1C2024; --fg:#E7EAEC; --muted:#99A3AB; --line:#2E343A;
+  --brass:#D9A24E; --brass-soft:#3A2F1E; --steel:#8FB0C6; --ok:#8CC57F; --bad:#E07A61;
+  --c1:#8FB0C6; --c2:#D9A24E; --c3:#E07A61; --c4:#A6BD6A; --c5:#B79AD0; --c6:#7D8890; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 120px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header h1{font-family:var(--f-display);font-weight:700;font-size:clamp(20px,5vw,28px);margin:0;text-wrap:balance;letter-spacing:-.01em}
+header p{margin:6px 0 0;color:var(--muted);max-width:68ch;font-size:15px}
+.grid{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label{font-weight:600;font-size:15px}
+.hint{font-size:13px;color:var(--muted)}
+input,select{font:inherit;font-size:17px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;width:100%;min-height:50px}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+.stepper{display:grid;grid-template-columns:54px minmax(0,1fr) 54px;gap:8px}
+.stepper button{font:600 22px var(--f-body);border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-height:50px;cursor:pointer;touch-action:manipulation}
+.stepper button:active{background:var(--line)}
+.stepper input{text-align:center}
+.price input{border:2px solid var(--brass);background:var(--brass-soft);font-size:22px;font-weight:600}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+/* ТН ВЭД */
+.hs{display:flex;flex-direction:column;gap:8px}
+.hs-res{border-radius:10px;padding:12px 14px;background:var(--bg);border:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}
+.hs-res .t{font-size:14px;min-width:0}
+.hs-res .t b{display:block;font-family:var(--f-num);font-size:14px}
+.hs-res .r{font-family:var(--f-display);font-weight:700;font-size:24px;white-space:nowrap}
+.hs-res.miss{border-color:var(--bad)}
+.hs-res.miss .r{color:var(--bad);font-size:15px;font-family:var(--f-body)}
+.sugg{display:flex;flex-direction:column;gap:6px}
+.sugg button{font:inherit;font-size:14px;text-align:left;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+.sugg button span:first-child{min-width:0}
+.sugg code{font-family:var(--f-num);font-size:13px;color:var(--steel)}
+.sugg .p{font-family:var(--f-num);font-weight:600;white-space:nowrap}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600;color:var(--steel);list-style:none;min-height:40px;display:flex;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";margin-right:8px} details[open] summary::before{content:"▾"}
+.settings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:8px}
+.settings label{font-size:13.5px;font-weight:500;display:flex;flex-direction:column;gap:5px}
+.settings input,.settings select{font-size:16px;min-height:46px;padding:10px 12px}
+/* результат */
+.res-top{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-end;justify-content:space-between}
+.big{font-family:var(--f-display);font-weight:700;font-size:clamp(36px,10vw,52px);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.som{font-family:var(--f-num);font-size:18px;margin-top:8px}
+.kpis{display:flex;gap:20px;flex-wrap:wrap}
+.kpi .v{font-family:var(--f-num);font-weight:600;font-size:18px}
+.kpi .k{font-size:12.5px;color:var(--muted)}
+.bar{display:flex;height:12px;border-radius:4px;overflow:hidden;background:var(--bg)}
+.bar span{display:block;height:100%}
+.lines{display:flex;flex-direction:column}
+.ln{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:4px 10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.ln .dot{width:10px;height:10px;border-radius:2px;margin-top:6px}
+.ln .nm{font-weight:600}
+.ln .v{font-family:var(--f-num);font-weight:600;text-align:right;white-space:nowrap}
+.ln .how{grid-column:2/3;font-size:13px;color:var(--muted)}
+.ln .v2{font-family:var(--f-num);font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
+.ln.total{border-bottom:none;border-top:2px solid var(--fg);margin-top:-1px}
+.ln.total .nm,.ln.total .v{font-size:18px}
+.batch{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:640px){.batch{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.cell{background:var(--bg);border-radius:10px;padding:12px}
+.cell .v{font-family:var(--f-num);font-weight:600;font-size:16px;word-break:break-word}
+.cell .k{font-size:12.5px;color:var(--muted)}
+.note{font-size:13px;color:var(--muted);max-width:90ch;margin:0}
+.warn{color:var(--bad)}
+/* закреплённый итог на телефоне */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--fg);color:var(--bg);
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:none;justify-content:space-between;align-items:center;gap:12px;border:0;width:100%;font:inherit;text-align:left;cursor:pointer}
+.dock .l{font-size:12px;opacity:.75}
+.dock .p{font-family:var(--f-display);font-weight:700;font-size:24px;line-height:1.1}
+.dock .s{font-family:var(--f-num);font-size:14px;text-align:right}
+@media (max-width:860px){.dock{display:flex}}
+@media (min-width:861px){body{padding-bottom:48px}}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Калькулятор себестоимости фурнитуры</h1>
+    <p>Выберите товар, впишите цену фабрики за 1 шт. Ставка пошлины подставится сама по коду ТН ВЭД.</p>
+  </header>
+
+  <div class="grid">
+    <form class="panel" id="f" autocomplete="off">
+      <div class="field">
+        <label for="prod">Товар</label>
+        <select id="prod"></select>
+      </div>
+
+      <div class="field price">
+        <label for="fob">Цена фабрики за 1 шт, $</label>
+        <div class="stepper">
+          <button type="button" data-step="fob" data-d="-0.1" aria-label="Уменьшить цену">−</button>
+          <input id="fob" class="num" type="text" inputmode="decimal">
+          <button type="button" data-step="fob" data-d="0.1" aria-label="Увеличить цену">+</button>
+        </div>
+        <span class="hint">Цена FOB Китай. Подставлен ориентир, впишите свою.</span>
+      </div>
+
+      <div class="field hs">
+        <label for="hs">Код ТН ВЭД</label>
+        <input id="hs" class="num" type="text" inputmode="numeric" placeholder="например 8302 41 100 0">
+        <div class="hs-res" id="hsRes"></div>
+        <div class="sugg" id="sugg"></div>
+        <div class="field" id="manualWrap" hidden>
+          <label for="dutyManual">Ставка пошлины вручную, %</label>
+          <input id="dutyManual" class="num" type="text" inputmode="decimal" value="10">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="w">Вес 1 шт, кг</label>
+          <input id="w" class="num" type="text" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="qty">Кол-во, шт</label>
+          <input id="qty" class="num" type="text" inputmode="numeric">
+        </div>
+      </div>
+      <span class="hint" style="margin-top:-8px">Вес с упаковкой. От него зависит доля доставки.</span>
+
+      <details id="adv">
+        <summary>Общие условия: фура, курс, ставки</summary>
+        <div class="settings">
+          <label>Курс, сом за $<input id="rate" class="num" type="text" inputmode="decimal" value="87,5"></label>
+          <label>Фура, $<input id="truck" class="num" type="text" inputmode="decimal" value="9000"></label>
+          <label>Загрузка фуры, кг<input id="load" class="num" type="text" inputmode="decimal" value="19500"></label>
+          <label>Фрахт до границы, %<input id="share" class="num" type="text" inputmode="decimal" value="80"></label>
+          <label>НДС, %<input id="vat" class="num" type="text" inputmode="decimal" value="12"></label>
+          <label>НДС в себестоимость
+            <select id="vatin"><option value="1">Да</option><option value="0">Нет, в зачёт</option></select></label>
+          <label>Там. сбор, %<input id="fee" class="num" type="text" inputmode="decimal" value="0,4"></label>
+          <label>Страховка, %<input id="ins" class="num" type="text" inputmode="decimal" value="0,3"></label>
+          <label>Банк, %<input id="bank" class="num" type="text" inputmode="decimal" value="1"></label>
+          <label>Агент в Китае, %<input id="agent" class="num" type="text" inputmode="decimal" value="3"></label>
+          <label>Брокер+СВХ на фуру, $<input id="fixed" class="num" type="text" inputmode="decimal" value="1400"></label>
+          <label>Резерв, %<input id="res" class="num" type="text" inputmode="decimal" value="3"></label>
+          <label>Оптовая наценка, %<input id="mark" class="num" type="text" inputmode="decimal" value="35"></label>
+        </div>
+      </details>
+    </form>
+
+    <section class="panel" id="result" aria-live="polite">
+      <span class="eyebrow">Себестоимость 1 шт на складе в Бишкеке</span>
+      <div class="res-top">
+        <div>
+          <div class="big" id="costUsd">—</div>
+          <div class="som" id="costSom">—</div>
+        </div>
+      </div>
+      <div class="bar" id="bar" aria-hidden="true"></div>
+      <div class="lines" id="lines"></div>
+
+      <span class="eyebrow" id="batchTitle">Итог по позиции</span>
+      <div class="batch" id="batch"></div>
+      <p class="note">Ставки взяты из Единого таможенного тарифа ЕАЭС (действуют и в Кыргызстане). Перед заказом подтвердите код у брокера: от кода зависит ставка. Доставка и расходы на фуру делятся по весу.</p>
+    </section>
+  </div>
+</div>
+
+<button class="dock" id="dock" type="button" aria-label="Показать расшифровку">
+  <div><div class="l">Себестоимость 1 шт</div><div class="p" id="dUsd">—</div></div>
+  <div class="s"><div id="dSom">—</div><div class="l" id="dMult">—</div></div>
+</button>
+
+<script>
+// Справочник ТН ВЭД ЕАЭС: код → ставка ввозной пошлины, % (ЕТТ ЕАЭС; alta.ru, tws.by, ifcg.ru)
+const HS=[
+ ["8302100000",0,"Шарниры (петли дверные любые)"],
+ ["8302200000",0,"Мебельные колёса"],
+ ["8302411000",10,"Фурнитура для дверей: ручки, защёлки, шпингалеты, фиксаторы, ограничители"],
+ ["8302415000",10,"Фурнитура для окон"],
+ ["8302419000",10,"Прочая фурнитура для зданий"],
+ ["8302490009",0,"Прочая фурнитура (мебельная и др.)"],
+ ["8302500000",12,"Крючки, вешалки, кронштейны"],
+ ["8302600009",10,"Доводчики дверные автоматические"],
+ ["8301401100",12,"Замки дверные цилиндровые (врезные, накладные)"],
+ ["8301401900",12,"Замки дверные прочие: WC, сувальдные, электронные"],
+ ["8301409000",12,"Замки прочие (не для дверей зданий)"],
+ ["8301600009",15,"Части замков: цилиндры, личинки отдельно"],
+ ["8301700000",15,"Ключи, поставляемые отдельно"]
+];
+const P=[
+ ["Ручка на розетке, цинк, эконом","8302411000",0.40,2.80,5300],
+ ["Ручка на розетке, премиум (чёрная / PVD)","8302411000",0.55,5.50,2600],
+ ["Ручка на планке 85 мм","8302411000",0.80,4.50,1300],
+ ["Ручка-купе / скоба для раздвижных","8302411000",0.15,1.80,1800],
+ ["Защёлка механическая","8302411000",0.25,1.60,6600],
+ ["Защёлка магнитная","8302411000",0.30,3.20,3500],
+ ["Замок врезной под цилиндр 85 мм","8301401100",0.55,3.80,3500],
+ ["Замок сантехнический WC","8301401900",0.35,2.40,2200],
+ ["Замок для входной двери, комплект","8301401100",1.40,9.00,400],
+ ["Цилиндр 60 мм ключ/ключ","8301600009",0.20,2.60,4400],
+ ["Цилиндр 60 мм ключ/вертушка","8301600009",0.22,3.00,1800],
+ ["Фиксатор WC (поворотник)","8302411000",0.15,1.40,2600],
+ ["Петля-бабочка 100×75 (2 шт)","8302100000",0.35,1.20,6600],
+ ["Петля врезная 100×75 с подшипн. (2 шт)","8302100000",0.50,2.20,3500],
+ ["Петля скрытая 3D","8302100000",0.45,4.50,1300],
+ ["Шпингалет накладной 100 мм","8302411000",0.08,0.45,3500],
+ ["Шпингалет торцевой 200 мм","8302411000",0.12,0.90,1300],
+ ["Ограничитель дверной","8302411000",0.12,0.50,3500],
+ ["Доводчик до 60 кг","8302600009",1.60,7.00,700],
+ ["Броненакладка на цилиндр","8302411000",0.40,2.50,900],
+ ["Другой товар","",0.30,2.00,1000]
+];
+const $=id=>document.getElementById(id);
+const fmtHS=c=>c.replace(/^(\d{4})(\d{2})(\d{3})(\d)$/,"$1 $2 $3 $4");
+const digits=s=>String(s).replace(/\D/g,"");
+const num=id=>{const v=parseFloat(String($(id).value).replace(/\s/g,"").replace(",","."));return isFinite(v)?v:0};
+const money=(v,d=2)=>v.toLocaleString("ru-RU",{minimumFractionDigits:d,maximumFractionDigits:d});
+const usd=v=>"$"+money(v);
+const usd0=v=>"$"+Math.round(v).toLocaleString("ru-RU");
+const som=v=>Math.round(v).toLocaleString("ru-RU")+" сом";
+const somS=v=>(v<100?money(v,1):Math.round(v).toLocaleString("ru-RU"))+" с";
+const pct=v=>(v*100).toLocaleString("ru-RU",{maximumFractionDigits:1})+"%";
+const dec=v=>String(v).replace(".",",");
+
+const sel=$("prod");
+P.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p[0];sel.appendChild(o)});
+
+let duty=null, dutyName="";
+function lookupHS(){
+  const d=digits($("hs").value);
+  const res=$("hsRes"), sg=$("sugg");
+  sg.innerHTML="";
+  const exact=HS.find(h=>h[0]===d);
+  if(exact){
+    duty=exact[1]; dutyName=fmtHS(exact[0]);
+    res.className="hs-res"; res.innerHTML=`<div class="t"><b>${fmtHS(exact[0])}</b>${exact[2]}</div><div class="r">${exact[1]}%</div>`;
+    $("manualWrap").hidden=true; return;
+  }
+  const list=d.length?HS.filter(h=>h[0].startsWith(d)):HS;
+  if(d.length && !list.length){
+    duty=null;
+    res.className="hs-res miss"; res.innerHTML=`<div class="t">Кода ${d} нет в справочнике фурнитуры. Впишите ставку вручную.</div><div class="r">нет</div>`;
+    $("manualWrap").hidden=false; return;
+  }
+  duty=null;
+  res.className="hs-res"; res.innerHTML=`<div class="t">Введите 10 цифр или выберите код ниже</div><div class="r">…</div>`;
+  $("manualWrap").hidden=true;
+  list.slice(0,6).forEach(h=>{
+    const b=document.createElement("button"); b.type="button";
+    b.innerHTML=`<span><code>${fmtHS(h[0])}</code><br>${h[2]}</span><span class="p">${h[1]}%</span>`;
+    b.onclick=()=>{$("hs").value=fmtHS(h[0]);lookupHS();calc()};
+    sg.appendChild(b);
+  });
+}
+
+function loadProduct(){
+  const p=P[sel.value];
+  $("fob").value=dec(p[3]); $("w").value=dec(p[2]); $("qty").value=p[4];
+  $("hs").value=p[1]?fmtHS(p[1]):"";
+  lookupHS(); calc();
+}
+
+function calc(){
+  const fob=num("fob"), w=num("w"), qty=num("qty"), rate=num("rate");
+  const dRate=(duty!==null?duty:(!$("manualWrap").hidden?num("dutyManual"):0))/100;
+  const load=num("load")||1, truck=num("truck"), share=num("share")/100;
+  const vat=num("vat")/100, vatIn=+$("vatin").value, fee=num("fee")/100, insR=num("ins")/100;
+  const bankR=num("bank")/100, agentR=num("agent")/100, fixed=num("fixed"), resR=num("res")/100, mark=num("mark")/100;
+
+  const perKg=truck/load, log=w*perKg, ins=fob*insR;
+  const cv=fob+log*share+ins, dutyV=cv*dRate, feeV=cv*fee, vatV=(cv+dutyV)*vat;
+  const bank=fob*bankR, agent=fob*agentR, fix=w*fixed/load, vatCost=vatV*vatIn;
+  const pre=fob+log+ins+dutyV+feeV+vatCost+bank+agent+fix, res=pre*resR, cost=pre+res;
+  const codeTxt=duty!==null?` по коду ${dutyName}`:"";
+
+  const rows=[
+   ["Цена фабрики",fob,"--c1","Платите поставщику в Китае"],
+   ["Доставка фурой",log,"--c2",`${money(perKg)} $/кг × ${dec(w)} кг`],
+   ["Ввозная пошлина",dutyV,"--c3",`${dec(+(dRate*100).toFixed(2))}%${codeTxt} от там. стоимости ${usd(cv)}`],
+   ["НДС при импорте",vatCost,"--c3",vatIn?`${dec(+(vat*100).toFixed(2))}% от (там. стоимость + пошлина)`:`${usd(vatV)} платите на границе, но берёте в зачёт`],
+   ["Таможенный сбор",feeV,"--c3",`${dec(+(fee*100).toFixed(2))}% от там. стоимости`],
+   ["Страховка",ins,"--c6",`${dec(+(insR*100).toFixed(2))}% от цены фабрики`],
+   ["Банк, перевод в Китай",bank,"--c6",`${dec(+(bankR*100).toFixed(2))}% от цены фабрики`],
+   ["Агент в Китае",agent,"--c5",`${dec(+(agentR*100).toFixed(2))}% от цены фабрики`],
+   ["Брокер, СВХ, инспекция",fix,"--c5",`$${fixed.toLocaleString("ru-RU")} на фуру, по весу`],
+   ["Резерв",res,"--c4",`${dec(+(resR*100).toFixed(2))}% от всех расходов`]
+  ];
+
+  $("costUsd").textContent=som(cost*rate);
+  $("costSom").textContent="≈ "+usd(cost)+" по курсу "+dec(rate);
+  $("dUsd").textContent=som(cost*rate); $("dSom").textContent=usd(cost); $("dMult").textContent="по курсу "+dec(rate);
+
+  $("lines").innerHTML=rows.map(r=>`<div class="ln"><span class="dot" style="background:var(${r[2]})"></span>
+    <span class="nm">${r[0]}</span><span class="v">${usd(r[1])}</span>
+    <span class="how">${r[3]}</span><span class="v2">${somS(r[1]*rate)} · ${fob>0?pct(r[1]/fob):"—"}</span></div>`).join("")
+   +`<div class="ln total"><span></span><span class="nm">Себестоимость 1 шт</span><span class="v">${usd(cost)}</span>
+    <span class="how">Из них сверху цены фабрики: ${usd(cost-fob)}</span><span class="v2">${somS(cost*rate)}</span></div>`;
+
+  $("bar").innerHTML=cost>0?rows.filter(r=>r[1]>0).map(r=>`<span style="width:${r[1]/cost*100}%;background:var(${r[2]})"></span>`).join(""):"";
+
+  const kg=qty*w, heavy=kg>load?"warn":"";
+  $("batchTitle").textContent=`Итог по позиции: ${Math.round(qty).toLocaleString("ru-RU")} шт`;
+  $("batch").innerHTML=[
+    ["Оплата фабрике",usd0(fob*qty)],["Себестоимость партии",usd0(cost*qty)],
+    ["Вес позиции",`<span class="${heavy}">${Math.round(kg).toLocaleString("ru-RU")} кг</span>`],
+    ["Доля фуры по весу",`<span class="${heavy}">${pct(kg/load)}</span>`],
+    ["Пошлина+сбор+НДС",usd0((dutyV+feeV+vatV)*qty)],["Доставка",usd0(log*qty)],
+    ["Опт. выручка",som(cost*(1+mark)*qty*rate)],["Валовая прибыль",som(cost*mark*qty*rate)]
+  ].map(c=>`<div class="cell"><div class="v">${c[1]}</div><div class="k">${c[0]}</div></div>`).join("");
+}
+
+sel.addEventListener("change",loadProduct);
+$("hs").addEventListener("input",()=>{lookupHS();calc()});
+$("f").addEventListener("input",e=>{if(e.target!==sel&&e.target.id!=="hs")calc()});
+$("f").addEventListener("change",e=>{if(e.target.id==="vatin")calc()});
+$("f").addEventListener("submit",e=>e.preventDefault());
+document.querySelectorAll("[data-step]").forEach(b=>b.addEventListener("click",()=>{
+  const id=b.dataset.step, v=Math.max(0,num(id)+parseFloat(b.dataset.d));
+  $(id).value=dec(+v.toFixed(2)); calc();
+}));
+$("dock").addEventListener("click",()=>$("result").scrollIntoView({block:"start"}));
+loadProduct();
+</script>
+</body>
+</html>
