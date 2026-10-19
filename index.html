@@ -160,11 +160,7 @@ summary::before{content:"▸";margin-right:8px} details[open] summary::before{co
           <label>НДС в себестоимость
             <select id="vatin"><option value="1">Да</option><option value="0">Нет, в зачёт</option></select></label>
           <label>Там. сбор, %<input id="fee" class="num" type="text" inputmode="decimal" value="0,4"></label>
-          <label>Страховка, %<input id="ins" class="num" type="text" inputmode="decimal" value="0,3"></label>
-          <label>Банк, %<input id="bank" class="num" type="text" inputmode="decimal" value="1"></label>
-          <label>Агент в Китае, %<input id="agent" class="num" type="text" inputmode="decimal" value="3"></label>
-          <label>Брокер+СВХ на фуру, $<input id="fixed" class="num" type="text" inputmode="decimal" value="1400"></label>
-          <label>Резерв, %<input id="res" class="num" type="text" inputmode="decimal" value="3"></label>
+          <label>Резерв, %<input id="res" class="num" type="text" inputmode="decimal" value="6"></label>
           <label>Оптовая наценка, %<input id="mark" class="num" type="text" inputmode="decimal" value="35"></label>
         </div>
       </details>
@@ -183,7 +179,7 @@ summary::before{content:"▸";margin-right:8px} details[open] summary::before{co
 
       <span class="eyebrow" id="batchTitle">Итог по позиции</span>
       <div class="batch" id="batch"></div>
-      <p class="note">Ставки взяты из Единого таможенного тарифа ЕАЭС (действуют и в Кыргызстане). Перед заказом подтвердите код у брокера: от кода зависит ставка. Доставка и расходы на фуру делятся по весу.</p>
+      <p class="note">Ставки взяты из Единого таможенного тарифа ЕАЭС (действуют и в Кыргызстане). Перед заказом подтвердите код у брокера: от кода зависит ставка. Доставка делится по весу.</p>
     </section>
   </div>
 </div>
@@ -287,26 +283,22 @@ function calc(){
   const fob=num("fob"), w=num("w"), qty=num("qty"), rate=num("rate");
   const dRate=(duty!==null?duty:(!$("manualWrap").hidden?num("dutyManual"):0))/100;
   const load=num("load")||1, truck=num("truck"), share=num("share")/100;
-  const vat=num("vat")/100, vatIn=+$("vatin").value, fee=num("fee")/100, insR=num("ins")/100;
-  const bankR=num("bank")/100, agentR=num("agent")/100, fixed=num("fixed"), resR=num("res")/100, mark=num("mark")/100;
+  const vat=num("vat")/100, vatIn=+$("vatin").value, fee=num("fee")/100;
+  const resR=num("res")/100, mark=num("mark")/100;
 
-  const perKg=truck/load, log=w*perKg, ins=fob*insR;
-  const cv=fob+log*share+ins, dutyV=cv*dRate, feeV=cv*fee, vatV=(cv+dutyV)*vat;
-  const bank=fob*bankR, agent=fob*agentR, fix=w*fixed/load, vatCost=vatV*vatIn;
-  const pre=fob+log+ins+dutyV+feeV+vatCost+bank+agent+fix, res=pre*resR, cost=pre+res;
+  const perKg=truck/load, log=w*perKg;
+  const cv=fob+log*share, dutyV=cv*dRate, feeV=cv*fee, vatV=(cv+dutyV)*vat;
+  const vatCost=vatV*vatIn;
+  const pre=fob+log+dutyV+feeV+vatCost, res=pre*resR, cost=pre+res;
   const codeTxt=duty!==null?` по коду ${dutyName}`:"";
 
   const rows=[
    ["Цена фабрики",fob,"--c1","Платите поставщику в Китае"],
    ["Доставка фурой",log,"--c2",`${money(perKg)} $/кг × ${dec(w)} кг`],
-   ["Ввозная пошлина",dutyV,"--c3",`${dec(+(dRate*100).toFixed(2))}%${codeTxt} от там. стоимости ${usd(cv)}`],
+   ["Ввозная пошлина",dutyV,"--c3",`${dec(+(dRate*100).toFixed(2))}%${codeTxt} от там. стоимости ${usd(cv)} (цена + ${Math.round(share*100)}% доставки до границы)`],
    ["НДС при импорте",vatCost,"--c3",vatIn?`${dec(+(vat*100).toFixed(2))}% от (там. стоимость + пошлина)`:`${usd(vatV)} платите на границе, но берёте в зачёт`],
    ["Таможенный сбор",feeV,"--c3",`${dec(+(fee*100).toFixed(2))}% от там. стоимости`],
-   ["Страховка",ins,"--c6",`${dec(+(insR*100).toFixed(2))}% от цены фабрики`],
-   ["Банк, перевод в Китай",bank,"--c6",`${dec(+(bankR*100).toFixed(2))}% от цены фабрики`],
-   ["Агент в Китае",agent,"--c5",`${dec(+(agentR*100).toFixed(2))}% от цены фабрики`],
-   ["Брокер, СВХ, инспекция",fix,"--c5",`$${fixed.toLocaleString("ru-RU")} на фуру, по весу`],
-   ["Резерв",res,"--c4",`${dec(+(resR*100).toFixed(2))}% от всех расходов`]
+   ["Резерв",res,"--c4",`${dec(+(resR*100).toFixed(2))}% от всех расходов: простой, пересорт, курс, мелкие расходы`]
   ];
 
   $("costUsd").textContent=som(cost*rate);
