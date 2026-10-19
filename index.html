@@ -155,7 +155,6 @@ summary::before{content:"▸";margin-right:8px} details[open] summary::before{co
           <label>Курс, сом за $<input id="rate" class="num" type="text" inputmode="decimal" value="87,5"></label>
           <label>Фура, $<input id="truck" class="num" type="text" inputmode="decimal" value="9000"></label>
           <label>Загрузка фуры, кг<input id="load" class="num" type="text" inputmode="decimal" value="19500"></label>
-          <label>Фрахт до границы, %<input id="share" class="num" type="text" inputmode="decimal" value="80"></label>
           <label>НДС, %<input id="vat" class="num" type="text" inputmode="decimal" value="12"></label>
           <label>НДС в себестоимость
             <select id="vatin"><option value="1">Да</option><option value="0">Нет, в зачёт</option></select></label>
@@ -282,12 +281,12 @@ function loadProduct(){
 function calc(){
   const fob=num("fob"), w=num("w"), qty=num("qty"), rate=num("rate");
   const dRate=(duty!==null?duty:(!$("manualWrap").hidden?num("dutyManual"):0))/100;
-  const load=num("load")||1, truck=num("truck"), share=num("share")/100;
+  const load=num("load")||1, truck=num("truck");
   const vat=num("vat")/100, vatIn=+$("vatin").value, fee=num("fee")/100;
   const resR=num("res")/100, mark=num("mark")/100;
 
   const perKg=truck/load, log=w*perKg;
-  const cv=fob+log*share, dutyV=cv*dRate, feeV=cv*fee, vatV=(cv+dutyV)*vat;
+  const cv=fob+log, dutyV=cv*dRate, feeV=cv*fee, vatV=(cv+dutyV)*vat;
   const vatCost=vatV*vatIn;
   const pre=fob+log+dutyV+feeV+vatCost, res=pre*resR, cost=pre+res;
   const codeTxt=duty!==null?` по коду ${dutyName}`:"";
@@ -295,7 +294,7 @@ function calc(){
   const rows=[
    ["Цена фабрики",fob,"--c1","Платите поставщику в Китае"],
    ["Доставка фурой",log,"--c2",`${money(perKg)} $/кг × ${dec(w)} кг`],
-   ["Ввозная пошлина",dutyV,"--c3",`${dec(+(dRate*100).toFixed(2))}%${codeTxt} от там. стоимости ${usd(cv)} (цена + ${Math.round(share*100)}% доставки до границы)`],
+   ["Ввозная пошлина",dutyV,"--c3",`${dec(+(dRate*100).toFixed(2))}%${codeTxt} от там. стоимости ${usd(cv)} (цена + доставка)`],
    ["НДС при импорте",vatCost,"--c3",vatIn?`${dec(+(vat*100).toFixed(2))}% от (там. стоимость + пошлина)`:`${usd(vatV)} платите на границе, но берёте в зачёт`],
    ["Таможенный сбор",feeV,"--c3",`${dec(+(fee*100).toFixed(2))}% от там. стоимости`],
    ["Резерв",res,"--c4",`${dec(+(resR*100).toFixed(2))}% от всех расходов: простой, пересорт, курс, мелкие расходы`]
